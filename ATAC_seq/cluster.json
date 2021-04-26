@@ -1,0 +1,41 @@
+{
+    "__default__": {
+        "job-name": "10x",
+        "time": "1:00:00",
+        "ntasks": 1,
+        "cpus-per-task": 1,
+        "nodes": 1,
+        "mem": "4G",
+        "partition": "wjg,sfgf,owners",
+        "mail": "kwells4@stanford.edu",
+        "type": "FAIL"
+    },
+    "mkfastq": {
+        "job-name": "mkfastq",
+        "time": "2:00:00",
+        "cpus-per-task": 5,
+        "mem": "24G",
+        "type": "BEGIN,END,FAIL"
+    },
+    "count": {
+        "job-name": "count",
+        "time": "24:00:00",
+        "cpus-per-task": 10,
+        "mem": "100G",
+        "type":"BEGIN,END,FAIL"
+    },
+        "count_no_hap": {
+        "job-name": "count",
+        "time": "24:00:00",
+        "cpus-per-task": 10,
+        "mem": "100G",
+        "type":"BEGIN,END,FAIL"
+    },
+    "subset_bam": {
+        "job-name": "subset_bam",
+        "time": "1:30:00",
+        "mem": "50G",
+        "type": "END",
+        "partition": "wjg"
+    }
+}

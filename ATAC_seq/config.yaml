@@ -1,0 +1,42 @@
+##### input information #####
+# Reference is the path to the reference to map to
+reference: /oak/stanford/groups/wjg/kwells4/genomes/refdata-cellranger-atac-GRCh38-1.1.0
+no_hap_reference: /oak/stanford/groups/wjg/kwells4/genomes/h38-no-haps
+
+# memory to allow cell ranger to use
+mem: 100
+
+# Use this structure if all runs have identical samples
+
+samples:
+    - Tonsil_1_a
+    - Tonsil_1_b
+    - Tonsil_2_a
+    - Tonsil_2_b
+    - Tonsil_3_a
+    - Tonsil_3_b
+
+run_names:
+    - scATAC_190814
+    - scATAC_190816
+    - scATAC_190817
+
+RNA_clusters:
+    - Activated_B
+    - Dark_GC_B
+    - Light_GC_B
+    - Monocyte_DC
+    - Naive_B
+    - Plasma_B
+    - CD4_T
+    - CD8_T
+
+# Use this structure if all runs don't have the same samples
+#scATAC_190814:
+#    - Tonsil_1_a
+#    - Tonsil_1_b
+#    - Tonsil_2_a
+#    - Tonsil_2_b
+#    - Tonsil_3_a
+#    - Tonsil_3_b
+

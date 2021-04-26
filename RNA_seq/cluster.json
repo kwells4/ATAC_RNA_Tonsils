@@ -1,0 +1,106 @@
+{
+    "__default__": {
+        "job-name": "10x",
+        "time": "1:00:00",
+        "ntasks": 1,
+        "cpus-per-task": 1,
+        "nodes": 1,
+        "mem": "4G",
+        "partition": "wjg,sfgf",
+        "mail": "kwells4@stanford.edu",
+        "type": "FAIL"
+    },
+    "bam2fastq": {
+        "job-name": "bam2fastq",
+        "time": "1:00:00",
+        "cpus-per-task": 10,
+        "mem": "20G",
+        "type":"BEGIN,END,FAIL"
+    },
+    "count": {
+        "job-name": "count",
+        "time": "24:00:00",
+        "cpus-per-task": 10,
+        "mem": "100G",
+        "type":"BEGIN,END,FAIL"
+    },
+    "make_loom": {
+        "job-name": "velocyto",
+        "time": "10:00:00",
+        "cpus-per-task": 20,
+        "mem": "100G",
+        "type":"BEGIN,END,FAIL"
+    },
+    "combine_loom": {
+        "job-name": "velocyto",
+        "time": "5:00:00",
+        "cpus-per-task": 1,
+        "mem": "100G",
+        "type":"BEGIN,END,FAIL"
+    },
+    "individ_analysis": {
+        "job-name": "R-analysis",
+        "time":"24:00:00",
+        "mem":"50G",
+        "cpus-per-task":24,
+        "type":"FAIL"
+    },
+    "tonsil_analysis": {
+        "job-name": "R-analysis",
+        "time":"5:00:00",
+        "mem":"40G",
+        "cpus-per-task":8,
+        "type":"FAIL"
+    },
+    "combine_all": {
+        "job-name": "R-analysis",
+        "time":"5:00:00",
+        "mem": "40G",
+        "cpus-per-task":8,
+        "type":"FAIL"
+    },
+    "subset_bam": {
+        "job-name": "subset_bam",
+        "time": "1:00:00",
+        "mem": "50G",
+        "type": "END",
+        "partition": "wjg"
+    },
+    "subset_analysis": {
+        "job-name":"R-analysis",
+        "time":"5:00:00",
+        "mem": "40G",
+        "cpus-per-task": 8,
+        "type":"FAIL",
+        "partition": "wjg"
+    },
+    "RNA_velo_setup": {
+        "job-name":"R-analysis",
+        "mem":"20G"
+    },
+    "name_subsets": {
+        "job-name":"R-analysis",
+        "mem":"20G"
+    },
+        "subset_analysis_gc": {
+        "job-name":"R-analysis",
+        "time":"5:00:00",
+        "mem": "40G",
+        "cpus-per-task": 8,
+        "type":"FAIL",
+        "partition": "wjg"
+    },
+    "RNA_velo_setup_gc": {
+        "job-name":"R-analysis",
+        "mem":"20G"
+    },
+    "sc_velo_gc": {
+        "job-name":"Python_analysis",
+        "mem":"20G"
+    },
+    "sc_velo": {
+        "job-name":"Python_analysis",
+        "mem":"20G"
+    }
+}
+

@@ -1,0 +1,108 @@
+from snakemake.utils import min_version
+
+##### set minimum snakemake version #####
+min_version("5.1.4")
+
+##### load config file #####
+configfile: "config.yaml"
+
+CLUSTERS = ["C1", "C2", "C3", "C4", "C5", "C6", "C7", "C8", "C9", "C10", "C11", "C12", "C13", "C14"]
+
+def make_fastq_list(wildcards):
+    fastq_list = []
+    for run_name in config["run_names"]:
+        fastq_file = run_name + "/" + run_name + "_mkfastq/outs/fastq_path"
+        fastq_list.append(fastq_file)
+    fastq_group = ",".join(fastq_list)
+    return(fastq_group)
+
+rule all:
+    input:
+        # Here you need to add in your run name as it appears in the config file
+        # You can have multiple runs
+        #expand("{run_name}/{sample}/{sample}_count", run_name = "scATAC_190814", sample = config["scATAC_190814"]),
+        #expand("{run_name}/{sample}/{sample}_count", run_name = "scATAC_190819", sample = config["scATAC_190819"])
+        # If all runs have the same structure, use:
+        expand("{sample}/outs", sample = config["samples"])
+
+rule count_wo_hap:
+    input:
+        expand("{sample}_no_hap/outs", sample = config["samples"])
+
+rule bam_clusters:
+    input:
+        expand("subset_bams/clusters/{sample}_cluster_{cluster}.bam", sample = config["samples"], cluster = CLUSTERS)
+
+
+rule bam_RNA_clusters:
+    input:
+        expand("subset_bams/RNA_clusters/{sample}_cluster_{cluster}.bam", sample = config["samples"], cluster = config["RNA_clusters"])
+
+
+rule mkfastq:
+    input:
+        runDir="{run_name}/{run_name}_raw_data",
+        sampleSheet="{run_name}/{run_name}_barcodes.csv"
+    output:
+        directory("{run_name}/{run_name}_mkfastq/outs/fastq_path")
+    params:
+        sampleID="{run_name}_mkfastq",
+        sampleName="{run_name}",
+        runDirP="{run_name}_raw_data",
+        sampleSheetP="{run_name}_barcodes.csv"
+    threads: 30
+    shell:
+        """
+        module load biology
+        module load bcl2fastq/2.20
+        cd {params.sampleName}
+        rm -r {params.sampleID}
+        cellranger-atac mkfastq --run={params.runDirP} --samplesheet={params.sampleSheetP} --id={params.sampleID} --localcores={threads} --qc
+        cd ..
+        """
+
+rule count:
+    input:
+        fastq_file=expand("{run_name}/{run_name}_mkfastq/outs/fastq_path", run_name = config["run_names"]),
+        #fastq_file=make_fastq_list,
+        ref=config['reference']
+    output: directory("{sample}_w_hap/outs")
+    params:
+        sampleID="{sample}",
+        sampleName="{sample}",
+        mem=config['mem'],
+        fastq_files=make_fastq_list
+    threads: 30
+    shell:
+        """
+        cellranger-atac count --id={params.sampleID} --fastqs={params.fastq_files} --sample={params.sampleName} --reference={input.ref} --localcores={threads} --localmem={params.mem}
+        """
+
+rule count_no_hap:
+    input:
+        fastq_file=expand("{run_name}/{run_name}_mkfastq/outs/fastq_path", run_name = config["run_names"]),
+        #fastq_file=make_fastq_list,
+        ref=config['no_hap_reference']
+    output: directory("{sample}_no_hap/outs")
+    params:
+        sampleID="{sample}_no_hap",
+        sampleName="{sample}",
+        mem=config['mem'],
+        fastq_files=make_fastq_list
+    threads: 30
+    shell:
+        """
+        cellranger-atac count --id={params.sampleID} --fastqs={params.fastq_files} --sample={params.sampleName} --reference={input.ref} --localcores={threads} --localmem={params.mem}
+        """
+
+rule subset_bam:
+    input:
+        cell_file = "ArchR_analysis_scg4/Tonsils_harmony/files/{cluster_type}/{sample}_cluster_{cluster}.tsv",
+        bam_file = "{sample}_no_hap_1/outs/possorted_bam.bam"
+    output:
+        out_bam = "subset_bams/{cluster_type}/{sample}_cluster_{cluster}.bam"
+    threads: 10
+    shell:
+        """
+        subset-bam --bam={input.bam_file} --cell-barcodes={input.cell_file} --cores={threads} --out-bam={output.out_bam}
+        """

@@ -1,0 +1,327 @@
+from snakemake.utils import min_version
+
+##### set minimum snakemake version #####
+min_version("5.1.4")
+
+##### load config file #####
+configfile: "config.yaml"
+
+CLUSTERS = range(0, 13)
+
+SEED = range(0, 100)
+
+def get_chemistry(wildcards):
+    if "Tonsil" in wildcards.sample:
+        chemistry="SC3Pv3"
+    else:
+        chemistry="auto"
+    return(chemistry)
+
+def get_ref(wildcards):
+    if "Tonsil" in wildcards.sample:
+        reference="total_seq.csv"
+    else:
+        reference="mpal_seqs.csv"
+    return(reference)
+
+rule all:
+    input:
+        #expand("{sample}_count/outs", sample = config["samples"])
+        expand("output/individualSamples_snakemake/files/{sample}_seurat.rda", sample = config["samples"]),
+        #expand("output/mergedTonsil_snakemake/files/{sample}_seurat.rda", sample = config["samples"]),
+        #expand("{sample}_bamtofastq", sample = config["published_samples"])
+        #expand("{sample}_count/outs", sample = config["published_samples"]),
+        #expand("{sample}_count/velocyto/{sample}_count.loom", sample = config["samples"])
+
+rule tonsils:
+    input:
+        expand("output/mergedTonsil_snakemake/files/{sample}_dubRm_seurat.rda", sample = config["individuals"])
+
+rule all_samples:
+    input: file="output/allSamples_snakemake/files/allSamples_dubRm_seurat.rda"
+
+
+rule subset_all:
+    input:
+        expand("output/allSamples_{subgroup}_snakemake/files/{subgroup}_dubRm_seurat.rda", subgroup = config["subgroups"])
+
+rule subset_all_nomt:
+    input:
+        expand("output/allSamples_nomt_{subgroup}_snakemake/files/{subgroup}_dubRm_seurat.rda", subgroup = config["subgroups"])
+
+rule setup_RNA_velo_all:
+    input:
+        expand("output/allSamples_{subgroup}_snakemake/files/{subgroup}_cluster_info.txt", subgroup = ["BCells", "GCBcells"])
+
+rule setup_RNA_velo_all_nomt:
+    input:
+        expand("output/allSamples_nomt_{subgroup}_snakemake/files/{subgroup}_cluster_info.txt", subgroup = ["BCells", "GCBcells"])
+
+rule setup_RNA_velo_all_no_cycling:
+    input:
+        expand("output/allSamples_nomt_{subgroup}_snakemake/files/{subgroup}_cluster_info.txt", subgroup = ["BCells_no_cycling", "GCBcells_no_cycling"])
+
+rule RNA_velo_all_no_cycling:
+    input:
+        expand("output/allSamples_nomt_{subgroup}_snakemake/images/rna_velocity_{subgroup}_cluster_harmony.png", subgroup = ["BCells_no_cycling", "GCBcells_no_cycling"])
+
+rule bam_clusters:
+    input:
+        expand("output/allSamples_GerminalBCells/files/subset_bams/{sample}_cluster{cluster}.bam", sample = config["samples"], cluster = CLUSTERS)
+
+rule gc_test_seed:
+    input:
+        expand("output/gc_seeds/allSamples_nomt_GCBcells_snakemake_{seed}/images/rna_velocity_GCBcells_cluster_harmony.png", seed = SEED)
+
+rule bam2fastq:
+    input:
+        bam="/oak/stanford/groups/wjg/zshipony/EZH2_scRNA/scRNA_jeff_sandy/scRNA_{sample}.bam.1"
+    output:
+        directory("{sample}_bamtofastq")
+    shell:
+        """
+        bamtofastq-1.2.0 {input.bam} {output}
+        """
+
+rule count:
+    input:
+        libraries="/oak/stanford/groups/wjg/zshipony/EZH2_scRNA/ADT_190924_KLW_test/{sample}.csv",
+        ref=config['reference'],
+        feature_ref=get_ref
+    output: directory("{sample}_count/outs")
+    params:
+        sampleID="{sample}_count",
+        mem=config['mem'],
+        chemistry=get_chemistry
+    threads: 10
+    shell:
+        """
+        cellranger count --id={params.sampleID} --transcriptome={input.ref} --feature-ref={input.feature_ref} --libraries={input.libraries} --localcores={threads} --localmem={params.mem} --chemistry={params.chemistry}
+        """
+
+rule make_loom:
+    input:
+        sample_folder="{sample}_count",
+        gtf_file=config['gtf']
+        #bam_file="{sample}_count/outs/cellsorted_possorted_genome_bam.bam"
+    output:
+        "{sample}_count/velocyto/{sample}_count.loom"
+    threads: 24
+    conda:
+        "envs/rna_velocity.yaml"
+    shell:
+        """
+        module load biology
+        module load samtools/1.6
+        velocyto run10x -@ {threads} {input.sample_folder} {input.gtf_file}
+        """
+
+rule individ_analysis:
+    input:
+        expand("{sample}_count/outs", sample = config["samples"])
+    output:
+        files=expand("output/individualSamples_snakemake/files/{sample}_seurat.rda", sample = config["samples"]),
+        images=expand("output/individualSamples_snakemake/images/UMAP_{sample}.pdf", sample = config["samples"])
+    params:
+        function_path="scripts/functions.R",
+        sample_list = config["samples"]
+    conda:
+        "envs/RNA_analysis.yaml"
+    script:
+        "scripts/individ_analysis.R"
+
+rule tonsil_analysis:
+    input:
+        expand("{sample}_count/outs", sample = config["samples"])
+    output:
+        files=expand("output/mergedTonsil_snakemake/files/{sample}_dubRm_seurat.rda", sample = config["individuals"]),
+        images=expand("output/mergedTonsil_snakemake/images/UMAP_{sample}.pdf", sample = config["individuals"])
+    params:
+        function_path="scripts/functions.R",
+        sample_list = config["individuals"],
+        output_dir = "/output/mergedTonsil_snakemake/"
+    conda:
+        "envs/RNA_analysis.yaml"
+    script:
+        "scripts/final_scripts/01_tonsil_analysis.R"
+
+
+rule combine_all:
+    input:
+        expand("output/mergedTonsil_snakemake/files/{sample}_dubRm_seurat.rda", sample = config["individuals"])
+    output:
+        file="output/{group}_snakemake/files/{group}_dubRm_seurat.rda",
+        plot="output/{group}_snakemake/images/cluster_by_sample_dubrm.pdf"
+    params:
+        function_path="scripts/functions.R",
+        sample_list = config["individuals"],
+        save_directory="output/{group}_snakemake/"
+    conda:
+        "envs/RNA_analysis.yaml"
+    script:
+        "scripts/final_scripts/02_combine_all.R"
+
+rule name_clusters:
+    input:
+        "output/{group}_snakemake/files/{group}_dubRm_seurat.rda"
+    output:
+        "output/{group}_snakemake/files/{group}_dubRm_namedClust_seurat.rda"
+    params:
+        function_path="scripts/functions.R",
+        save_directory="output/{group}_snakemake/"
+    conda:
+        "envs/RNA_analysis.yaml"
+    script:
+        "scripts/final_scripts/03_rename_clusters.R"
+
+rule subset_analysis:
+    input:
+        "output/{group}_snakemake/files/{group}_dubRm_namedClust_seurat.rda"
+    output:
+        "output/{group}_{subgroup}_snakemake/files/{subgroup}_dubRm_seurat.rda",
+        "output/{group}_{subgroup}_snakemake/images/all_samples_{subgroup}_UMAP.pdf"
+    params:
+        function_path="scripts/functions.R",
+        subset_list=config["subgroups"],
+        subgroup="{subgroup}",
+        save_directory="output/{group}_{subgroup}_snakemake/",
+        sample_list = config["individuals"]
+    conda:
+        "envs/RNA_analysis.yaml"
+    script:
+        #"scripts/final_scripts/04_subset_seurat.R" # This was used for Bcells and Tcells
+        "scripts/final_scripts/04_subset_seurat_no_cycling.R" #This was used for no cycling
+
+rule subset_analysis_gc:
+    input:
+        "output/{group}_snakemake/files/{group}_dubRm_namedClust_seurat.rda"
+    output:
+        "output/gc_seeds/{group}_{subgroup}_snakemake_{seed}/files/{subgroup}_dubRm_seurat.rda",
+        "output/gc_seeds/{group}_{subgroup}_snakemake_{seed}/images/all_samples_{subgroup}_UMAP.pdf"
+    params:
+        function_path="scripts/functions.R",
+        subset_list=config["subgroups"],
+        subgroup="{subgroup}",
+        save_directory="output/gc_seeds/{group}_{subgroup}_snakemake_{seed}/",
+        sample_list = config["individuals"],
+        seed = "{seed}"
+    conda:
+        "envs/RNA_analysis.yaml"
+    script:
+        "scripts/final_scripts/04_subset_seurat_gc.R"
+
+rule name_subsets:
+    input:
+        "output/{group}_{subgroup}_snakemake/files/{subgroup}_dubRm_seurat.rda"
+    output:
+        "output/{group}_{subgroup}_snakemake/files/{subgroup}_dubRm_namedClust_seurat.rda"
+    params:
+        function_path="scripts/functions.R",
+        save_directory="output/{group}_{subgroup}_snakemake/",
+        subgroup="{subgroup}"
+    conda:
+        "envs/RNA_analysis.yaml"
+    script:
+        "scripts/final_scripts/05_rename_subset_clusters.R"
+
+
+rule combine_loom:
+    input:
+        expand("{sample}_count/velocyto/{sample}_count.loom", sample = config["samples"])
+    output:
+        "output/allSamples/files/allSamples_RNA_velo.loom"
+    conda:
+        "envs/rna_velocity.yaml"
+    script:
+        "scripts/allSamples_combine_RNA_velo.py"
+
+rule RNA_velo_setup:
+    input: "output/{group}_{subgroup}_snakemake/files/{subgroup}_dubRm_namedClust_seurat.rda"
+    output:
+        cluster="output/{group}_{subgroup}_snakemake/files/{subgroup}_cluster_info.txt",
+        cell_type="output/{group}_{subgroup}_snakemake/files/{subgroup}_cell_info.txt",
+        pca="output/{group}_{subgroup}_snakemake/files/{subgroup}_pca_info.txt",
+        umap="output/{group}_{subgroup}_snakemake/files/{subgroup}_UMAP_info.txt",
+        harmony="output/{group}_{subgroup}_snakemake/files/{subgroup}_harmony_info.txt"
+    conda:
+        "envs/RNA_analysis.yaml"
+    script:
+        "scripts/final_scripts/06_RNA_velo_setup.R"
+
+rule RNA_velo_setup_gc:
+    input: "output/gc_seeds/{group}_{subgroup}_snakemake_{seed}/files/{subgroup}_dubRm_seurat.rda"
+    output:
+        cluster="output/gc_seeds/{group}_{subgroup}_snakemake_{seed}/files/{subgroup}_cluster_info.txt",
+        cell_type="output/gc_seeds/{group}_{subgroup}_snakemake_{seed}/files/{subgroup}_cell_info.txt",
+        pca="output/gc_seeds/{group}_{subgroup}_snakemake_{seed}/files/{subgroup}_pca_info.txt",
+        umap="output/gc_seeds/{group}_{subgroup}_snakemake_{seed}/files/{subgroup}_UMAP_info.txt",
+        harmony="output/gc_seeds/{group}_{subgroup}_snakemake_{seed}/files/{subgroup}_harmony_info.txt"
+    conda:
+        "envs/RNA_analysis.yaml"
+    script:
+        "scripts/final_scripts/06_RNA_velo_setup.R"
+
+rule sc_velo:
+    input:
+        loom="output/allSamples/files/allSamples_RNA_velo.loom",
+        cell_type="output/{group}_{subgroup}_snakemake/files/{subgroup}_cell_info.txt",
+        cluster="output/{group}_{subgroup}_snakemake/files/{subgroup}_cluster_info.txt",
+        pca="output/{group}_{subgroup}_snakemake/files/{subgroup}_pca_info.txt",
+        umap="output/{group}_{subgroup}_snakemake/files/{subgroup}_UMAP_info.txt",
+        harmony="output/{group}_{subgroup}_snakemake/files/{subgroup}_harmony_info.txt"
+    output:
+        cluster_png="output/{group}_{subgroup}_snakemake/images/rna_velocity_{subgroup}_cluster_harmony.png",
+        cell_type_png="output/{group}_{subgroup}_snakemake/images/rna_velocity_{subgroup}_cell_type_harmony.png",
+        pseudotime_file = "output/{group}_{subgroup}_snakemake/files/{subgroup}_pseudotime.txt"
+    params:
+        subgroup="{subgroup}",
+        save_dir = "output/{group}_{subgroup}_snakemake/"
+    conda:
+        "envs/scvelo.yaml"
+    script:
+        "scripts/final_scripts/07_RNA_velo.py"
+
+rule sc_velo_gc:
+    input:
+        loom="output/allSamples/files/allSamples_RNA_velo.loom",
+        cluster="output/gc_seeds/{group}_{subgroup}_snakemake_{seed}/files/{subgroup}_cluster_info.txt",
+        cell_type="output/gc_seeds/{group}_{subgroup}_snakemake_{seed}/files/{subgroup}_cell_info.txt",
+        pca="output/gc_seeds/{group}_{subgroup}_snakemake_{seed}/files/{subgroup}_pca_info.txt",
+        umap="output/gc_seeds/{group}_{subgroup}_snakemake_{seed}/files/{subgroup}_UMAP_info.txt",
+        harmony="output/gc_seeds/{group}_{subgroup}_snakemake_{seed}/files/{subgroup}_harmony_info.txt"
+    output:
+        cluster_png="output/gc_seeds/{group}_{subgroup}_snakemake_{seed}/images/rna_velocity_{subgroup}_cluster_harmony.png",
+        cell_type_png="output/gc_seeds/{group}_{subgroup}_snakemake_{seed}/images/rna_velocity_{subgroup}_cell_type_harmony.png",
+        pseudotime_file = "output/gc_seeds/{group}_{subgroup}_snakemake_{seed}/files/{subgroup}_pseudotime.txt"
+    params:
+        subgroup = "{subgroup}",
+        save_dir = "output/gc_seeds/{group}_{subgroup}_snakemake_{seed}/"
+    conda:
+        "envs/scvelo.yaml"
+    script:
+        "scripts/final_scripts/07_RNA_velo.py"
+
+rule pseudotime_analysis:
+    input:
+        velocity_file = "output/{group}_{subgroup}_snakemake/files/{subgroup}_pseudotime.txt",
+        seurat_file = "output/{group}_{subgroup}_snakemake/files/{subgroup}_dubRm_namedClust_seurat.rda"
+    output:
+        "output/{group}_{subgroup}_snakemake/images/{subgroup}_pseudotime_heatmap.pdf"
+    conda:
+        "envs/pseudotime_analysis.yaml"
+    script:
+        "scripts/final_scripts/08_pseudotime_analysis.R"
+
+
+rule subset_bam:
+    input:
+        cell_file = "output/allSamples_GerminalBCells/files/{sample}_cluster{cluster}.tsv",
+        bam_file = "{sample}_count/outs/possorted_genome_bam.bam"
+    output:
+        out_bam = "output/allSamples_GerminalBCells/files/subset_bams/{sample}_cluster{cluster}.bam"
+    threads: 10
+    shell:
+        """
+        subset-bam --bam={input.bam_file} --cell-barcodes={input.cell_file} --cores={threads} --out-bam={output.out_bam}
+        """
+
