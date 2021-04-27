@@ -359,7 +359,7 @@ projTonsils5 <- addCellColData(projTonsils5, data = sample_data$Tonsil_celltype,
   name = "Tonsil_celltype", cells = rownames(sample_data), force = TRUE)
 
 correlations_wb <- createWorkbook()
-
+# Get average expression
 average_PM <- getGroupSE(
   ArchRProj = projTonsils5,
   useMatrix = "PeakMatrix",
@@ -441,7 +441,7 @@ expression <- assays(average_PM)$PeakMatrix
 expression <- expression %>%
   dplyr::na_if(0)
 
-lapply(unique(sample_data$new_cell_type), function(x){
+lapply(unique(sample_data$new_high_res), function(x){
   expression_short <- expression %>%
     data.frame %>%
     dplyr::select(dplyr::contains(as.character(x)))
@@ -473,7 +473,7 @@ expression <- assays(average_GS)$GeneScoreMatrix
 expression <- expression %>%
   dplyr::na_if(0)
 
-lapply(unique(sample_data$new_cell_type), function(x){
+lapply(unique(sample_data$new_high_res), function(x){
   expression_short <- expression %>%
     data.frame %>%
     dplyr::select(dplyr::contains(as.character(x)))
