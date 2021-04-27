@@ -284,7 +284,7 @@ writeData(percents_wb, "t_cell_high_res", percents_t[[1]])
 ## Save workbook
 saveWorkbook(percents_wb,
              file = paste0(save_dir,
-                           "files/ATAC_percents.xlsx"),
+                           "/files/ATAC_percents.xlsx"),
              overwrite = TRUE)
 
 
@@ -343,7 +343,7 @@ writeData(DE_wb, "GeneIntegrationMatrix", markerList_GI[[1]])
 
 saveWorkbook(DE_wb,
              file = paste0(save_dir,
-                           "files/Harmony_DE.xlsx"),
+                           "/files/Harmony_DE.xlsx"),
              overwrite = TRUE)
 
 ################
@@ -386,7 +386,7 @@ lapply(unique(sample_data$new_cell_type), function(x){
 ## Save workbook to working directory
 saveWorkbook(correlations_wb,
              file = paste0(save_dir,
-                           "files/ATAC_PM_cell_type_corr.xlsx"),
+                           "/files/ATAC_PM_cell_type_corr.xlsx"),
              overwrite = TRUE)
 
 
@@ -418,7 +418,7 @@ lapply(unique(sample_data$new_cell_type), function(x){
 ## Save workbook to working directory
 saveWorkbook(correlations_wb,
              file = paste0(save_dir,
-                           "files/ATAC_GS_cell_type_corr.xlsx"),
+                           "/files/ATAC_GS_cell_type_corr.xlsx"),
              overwrite = TRUE)
 
 # High Res
@@ -456,7 +456,7 @@ lapply(unique(sample_data$new_high_res), function(x){
 ## Save workbook to working directory
 saveWorkbook(correlations_wb,
              file = paste0(save_dir,
-                           "files/ATAC_PM_cell_type_high_res_corr.xlsx"),
+                           "/files/ATAC_PM_cell_type_high_res_corr.xlsx"),
              overwrite = TRUE)
 
 
@@ -488,5 +488,5 @@ lapply(unique(sample_data$new_high_res), function(x){
 ## Save workbook to working directory
 saveWorkbook(correlations_wb,
              file = paste0(save_dir,
-                           "files/ATAC_GS_cell_type_high_res_corr.xlsx"),
+                           "/files/ATAC_GS_cell_type_high_res_corr.xlsx"),
              overwrite = TRUE)
