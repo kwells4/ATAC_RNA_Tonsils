@@ -440,6 +440,12 @@ lapply(unique(seurat_object_all$new_cell_type), function(x){
   return(correlations)
 })
 
+correlations_all <- stats::cor(expression, use = "pairwise.complete.obs",
+                               method = "spearman")
+addWorksheet(correlations_wb, "all_correlations")
+writeData(correlations_wb, "all_correlations", correlations_all,
+          rowNames = TRUE)
+
 ## Save workbook to working directory
 saveWorkbook(correlations_wb,
              file = paste0(save_dir,
@@ -472,6 +478,12 @@ lapply(unique(seurat_object_all$new_high_res), function(x){
             rowNames = TRUE)
   return(correlations)
 })
+
+correlations_all <- stats::cor(expression, use = "pairwise.complete.obs",
+                           method = "spearman")
+addWorksheet(correlations_wb, "all_correlations")
+writeData(correlations_wb, "all_correlations", correlations_all,
+          rowNames = TRUE)
 
 ## Save workbook to working directory
 saveWorkbook(correlations_wb,
@@ -508,29 +520,87 @@ plot_doublets <- function(tonsil, tonsil_obj){
   scrublet_scores <- scrublet_scores[order(match(scrublet_scores$barcode,
                                                  rownames(tonsil_obj[[]]))),]
   
-  tonsil_obj$doublet <- scrublet_scores$predicted_doublet
+  identical(scrublet_scores$barcode, colnames(tonsil_obj))
+  
+  
+  scrublet_scores$df <- tonsil_obj[[df_col]][[1]]
+  scrublet_scores <- scrublet_scores %>%
+    dplyr::mutate(scrublet = ifelse(predicted_doublet, "Doublet", "Singlet")) %>%
+    dplyr::mutate(combined_doublet = ifelse(
+      (df == "Doublet" & scrublet == "Doublet"), "Doublet",
+      ifelse(
+        (df == "Singlet" & scrublet == "Doublet"), "Scrublet_Doublet",
+        ifelse(
+          (df == "Doublet" & scrublet == "Singlet"), "DF_Doublet",
+          ifelse(
+            (df == "Singlet" & scrublet == "Singlet"), "Singlet", "unknown"
+          )
+        )
+      )
+    ))
+   
+  tonsil_obj$doublet <- scrublet_scores$scrublet
+  
+  tonsil_obj$combined_doublet <- scrublet_scores$combined_doublet
   
   db_cols <- c("Doublet" = "red", "Singlet" = "grey",
-               "True" = "red", "False" = "grey")
+               "DF_Doublet" = "Blue", "Scrublet_Doublet" = "Dark green")
+  if(tonsil == "Tonsil3"){
+    show_legend = TRUE
+  } else {
+    show_legend = FALSE
+  }
   
   plot1 <- plotDimRed(tonsil_obj, col_by = df_col,
                       color = db_cols, show_legend = FALSE)[[1]] +
-    ggplot2::ggtitle("Doublet Finder")
+    ggplot2::ggtitle(paste0("Doublet Finder ", tonsil))
   
   plot2 <- plotDimRed(tonsil_obj, col_by = "doublet",
                       color = db_cols, show_legend = TRUE)[[1]] +
-    ggplot2::ggtitle("Scrublet")
+    ggplot2::ggtitle(paste0("Scrublet ", tonsil))
+  
+  plot3 <- plotDimRed(tonsil_obj, col_by = "combined_doublet",
+                      color = db_cols, show_legend = show_legend)[[1]] +
+    ggplot2::ggtitle(paste0("Combined ", tonsil))
   
   doublet_plot <- plot_grid(plot1, plot2,
                             nrow = 1, ncol = 2,
                             align = "hv",
                             axis = "tb",
-                            labels = c("A", "B"))
-  pdf(paste0(save_dir, "plots/doublets_", tonsil, ".pdf"), width = 11, height = 8)
+                            labels = c("A", "B"),
+                            rel_widths = c(1, 1.35))
+  pdf(paste0(save_dir, "plots/doublets_", tonsil, ".pdf"), width = 11, height = 5)
   print(doublet_plot)
   dev.off()
+  return(list(df = plot1, scrublet = plot2, combined_plot = plot3))
 }
 
-plot_doublets(tonsil = "Tonsil1", tonsil_obj = Tonsil1_obj)
-plot_doublets(tonsil = "Tonsil2", tonsil_obj = Tonsil2_obj)
-plot_doublets(tonsil = "Tonsil3", tonsil_obj = Tonsil3_obj)
+plot_list1 <- plot_doublets(tonsil = "Tonsil1", tonsil_obj = Tonsil1_obj)
+plot_list2 <- plot_doublets(tonsil = "Tonsil2", tonsil_obj = Tonsil2_obj)
+plot_list3 <- plot_doublets(tonsil = "Tonsil3", tonsil_obj = Tonsil3_obj)
+
+doublet_plot_all <- plot_grid(plot_list1$df, plot_list1$scrublet,
+                              plot_list2$df, plot_list2$scrublet,
+                              plot_list3$df, plot_list3$scrublet,
+                              nrow = 3, ncol = 2,
+                              align = "hv",
+                              axis = "tb",
+                              labels = c("A", "B", "C", "D", "E", "F"),
+                              rel_widths = c(1, 1.35))
+
+pdf(paste0(save_dir, "plots/doublets_all.pdf"), width = 11, height = 15)
+print(doublet_plot_all)
+dev.off()
+
+doublet_plot_comb <- plot_grid(plot_list1$combined_plot,
+                               plot_list2$combined_plot,
+                               plot_list3$combined_plot,
+                               nrow = 1, ncol = 3,
+                               align = "hv",
+                               axis = "tb",
+                               labels = c("A", "B", "C"),
+                               rel_widths = c(1, 1, 1.5))
+
+pdf(paste0(save_dir, "plots/combined_doublets.pdf"), width = 17.5, height = 5.25)
+print(doublet_plot_comb)
+dev.off()

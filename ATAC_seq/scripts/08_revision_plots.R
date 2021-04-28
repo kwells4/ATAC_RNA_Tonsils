@@ -383,6 +383,13 @@ lapply(unique(sample_data$new_cell_type), function(x){
   return(correlations)
 })
 
+correlations_all <- stats::cor(expression, use = "pairwise.complete.obs",
+                           method = "spearman")
+addWorksheet(correlations_wb, "all_correlations")
+writeData(correlations_wb, "all_correlations", correlations_all,
+          rowNames = TRUE)
+
+
 ## Save workbook to working directory
 saveWorkbook(correlations_wb,
              file = paste0(save_dir,
@@ -414,6 +421,13 @@ lapply(unique(sample_data$new_cell_type), function(x){
             rowNames = TRUE)
   return(correlations)
 })
+
+correlations_all <- stats::cor(expression, use = "pairwise.complete.obs",
+                           method = "spearman")
+addWorksheet(correlations_wb, "all_correlations")
+writeData(correlations_wb, "all_correlations", correlations_all,
+          rowNames = TRUE)
+
 
 ## Save workbook to working directory
 saveWorkbook(correlations_wb,
@@ -453,6 +467,12 @@ lapply(unique(sample_data$new_high_res), function(x){
   return(correlations)
 })
 
+correlations_all <- stats::cor(expression, use = "pairwise.complete.obs",
+                           method = "spearman")
+addWorksheet(correlations_wb, "all_correlations")
+writeData(correlations_wb, "all_correlations", correlations_all,
+          rowNames = TRUE)
+
 ## Save workbook to working directory
 saveWorkbook(correlations_wb,
              file = paste0(save_dir,
@@ -484,6 +504,12 @@ lapply(unique(sample_data$new_high_res), function(x){
             rowNames = TRUE)
   return(correlations)
 })
+
+correlations_all <- stats::cor(expression, use = "pairwise.complete.obs",
+                           method = "spearman")
+addWorksheet(correlations_wb, "all_correlations")
+writeData(correlations_wb, "all_correlations", correlations_all,
+          rowNames = TRUE)
 
 ## Save workbook to working directory
 saveWorkbook(correlations_wb,
