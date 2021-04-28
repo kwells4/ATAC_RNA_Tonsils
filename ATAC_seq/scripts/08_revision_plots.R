@@ -10,7 +10,7 @@ function_path <- "/oak/stanford/groups/wjg/zshipony/EZH2_scRNA/ADT_190924_KLW_te
 
 make_barplots_ATAC <- function(ATAC_meta, sample_name,
 	meta_data_list = c("Clusters_Harmony", "Clusters2"),
-	color_list = NULL, position = "stack"){
+	color_list = NULL, position = "stack", subsample_by = "Sample"){
 	if(!setequal(names(color_list), meta_data_list)){
 		stop("'color_list' must contain the same elements as 'meta_data_list'")
 	}
@@ -21,7 +21,7 @@ make_barplots_ATAC <- function(ATAC_meta, sample_name,
 
 	barplots <- lapply(meta_data_list, function(x)
 		one_barplot_ATAC(ATAC_meta = ATAC_meta, subsample_list = tonsil_list,
-			sample_name = sample_name, subsample_by = "Sample", meta_data_col = x,
+			sample_name = sample_name, subsample_by = subsample_by, meta_data_col = x,
 			position = position, color = color_list[[x]]))
 
 }
@@ -174,7 +174,8 @@ b_colors <- c("FCRL4_MCB" = "#E41A1C",
               "Light_GC_B" = "#F781BF",
               "Plasmablasts" = "#999999")
 
-
+# Set theme
+ggplot2::theme_set(ggplot2::theme_classic(base_size = 18))
 
 ###############################
 #             ATAC            #
@@ -211,7 +212,7 @@ new_clusters_high_res <- c("FCRL4+MCB" = "FCRL4_MCB",
                   "Treg" = "Treg",
                   "Tfh" = "TfH",
                   "Tfh_CXCL13" = "TfH_CXCL13",
-                  "Naive_Tcells" = "Naive_CD4",
+                  "Naive_TCells" = "Naive_CD4",
                   "Tcm_CD4" = "Tcm_CD4",
                   "Tcm_CD8" = "Tcm_CD8",
                   "CTL" = "CTL",
@@ -239,12 +240,12 @@ sample_data <- getCellColData(projTonsils5)
 
 sample_data$Tonsil <- gsub("a|b", "", sample_data$Sample)
 
-tonsil_list <- unique(sample_data$Sample)
+tonsil_list <- unique(sample_data$Tonsil)
 
 pdf(paste0(save_dir, "/plots/allSamples_ATAC_proportions_barplot.pdf"))
 
 percents_low_res <- make_barplots_ATAC(ATAC_meta = sample_data, sample_name = "all_samples",
-	color_list = list(new_cell_type = colors_cell_type_new),
+	color_list = list(new_cell_type = colors_cell_type_new), subsample_by = "Tonsil",
   meta_data_list = c("new_cell_type"))
 
 dev.off()
@@ -255,7 +256,7 @@ b_meta <- sample_data %>%
 
 pdf(paste0(save_dir, "/plots/allSamples_ATAC_proportions_high_res_B_barplot.pdf"))
 percents_b <- make_barplots_ATAC(ATAC_meta = b_meta, sample_name = "all_samples",
-  color_list = list(new_high_res = b_colors),
+  color_list = list(new_high_res = b_colors), subsample_by = "Tonsil",
   meta_data_list = c("new_high_res"))
 
 dev.off()
@@ -266,7 +267,7 @@ t_meta <- sample_data %>%
   
 pdf(paste0(save_dir, "/plots/allSamples_ATAC_proportions_high_res_T_barplot.pdf"))
 percents_t <- make_barplots_ATAC(ATAC_meta = t_meta, sample_name = "all_samples",
-  color_list = list(new_high_res = t_colors),
+  color_list = list(new_high_res = t_colors), subsample_by = "Tonsil",
   meta_data_list = c("new_high_res"))
 
 dev.off()
@@ -456,9 +457,11 @@ expression <- expression %>%
   dplyr::na_if(0)
 
 lapply(unique(sample_data$new_high_res), function(x){
+  print(as.character(x))
   expression_short <- expression %>%
     data.frame %>%
-    dplyr::select(dplyr::contains(as.character(x)))
+    dplyr::select(dplyr::matches(paste0("(Tonsil[0-9]|BCP00[0-9])_", as.character(x), "$")))
+  print(colnames(expression_short))
   correlations <- stats::cor(expression_short, use = "pairwise.complete.obs",
                              method = "spearman")
   addWorksheet(correlations_wb, as.character(x))
@@ -496,7 +499,7 @@ expression <- expression %>%
 lapply(unique(sample_data$new_high_res), function(x){
   expression_short <- expression %>%
     data.frame %>%
-    dplyr::select(dplyr::contains(as.character(x)))
+    dplyr::select(dplyr::matches(paste0("(Tonsil[0-9]|BCP00[0-9])_", as.character(x), "$")))
   correlations <- stats::cor(expression_short, use = "pairwise.complete.obs",
                              method = "spearman")
   addWorksheet(correlations_wb, as.character(x))
